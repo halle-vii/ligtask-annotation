@@ -94,7 +94,7 @@ export default function TranslatePage() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+      <div className="h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}>
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading prompts...</p>
@@ -105,16 +105,16 @@ export default function TranslatePage() {
 
   if (!currentPrompt) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+      <div className="h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}>
         <p className="text-gray-600">No prompts available.</p>
       </div>
     );
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex overflow-hidden">
+    <div className="h-screen flex overflow-hidden" style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}>
       {/* Top-right Logout Button */}
-      <div className="fixed top-4 right-4 z-50">
+      <div className="fixed top-4 right-10 z-50">
         <LogoutButton />
       </div>
 
@@ -129,13 +129,15 @@ export default function TranslatePage() {
             }}
             className={`w-12 h-12 flex items-center justify-center mb-2 rounded-lg transition-colors font-medium ${
               index === currentIndex
-                ? 'bg-blue-500 text-white font-bold'
+                ? 'text-white'
                 : completedIds.has(prompt.id)
                 ? 'text-gray-700'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
             style={
-              index !== currentIndex && completedIds.has(prompt.id)
+              index === currentIndex
+                ? { backgroundColor: '#1C45D5' }
+                : completedIds.has(prompt.id)
                 ? { backgroundColor: '#B2E3FF' }
                 : undefined
             }
@@ -173,27 +175,30 @@ export default function TranslatePage() {
 
           {/* Quiz Card */}
           <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
-            {/* English Text */}
-            <div className="bg-blue-50 rounded-xl p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-3">English:</h3>
-              <p className="text-gray-800 leading-relaxed">{currentPrompt.english_text}</p>
-            </div>
-
-            {/* Filipino Text with Copy Button */}
-            <div className="bg-blue-50 rounded-xl p-6 relative">
-              <div className="flex justify-between items-start mb-3">
-                <h3 className="text-lg font-bold text-gray-900">Filipino:</h3>
-                <button
-                  onClick={handleCopyFilipino}
-                  className="text-blue-600 hover:text-blue-700"
-                  title="Copy to revision box"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                </button>
+            {/* Stacked prompt boxes — English sits on top of Filipino */}
+            <div className="flex flex-col gap-0">
+              {/* English box — renders first, sits on top via z-index */}
+              <div className="bg-blue-50 rounded-xl p-6 relative z-10 shadow-sm">
+                <h3 className="text-lg font-bold text-gray-900 mb-3">English:</h3>
+                <p className="text-gray-800 leading-relaxed">{currentPrompt.english_text}</p>
               </div>
-              <p className="text-gray-800 leading-relaxed">{currentPrompt.filipino_text}</p>
+
+              {/* Filipino box — tucked behind, top rounded corners hidden under English box */}
+              <div className="bg-blue-100 rounded-xl p-6 -mt-4 pt-8 relative z-0">
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="text-lg font-bold text-gray-900">Filipino:</h3>
+                  <button
+                    onClick={handleCopyFilipino}
+                    className="text-blue-600 hover:text-blue-700"
+                    title="Copy to revision box"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-gray-800 leading-relaxed">{currentPrompt.filipino_text}</p>
+              </div>
             </div>
 
             {/* Question */}

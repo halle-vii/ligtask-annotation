@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getUsers, createUser, setUserActive } from '@/app/actions/admin';
+import { getUsers, createUser, setUserActive, deleteUser } from '@/app/actions/admin';
 import { UserRole } from '@/types/database';
 
 interface User {
@@ -29,6 +29,7 @@ export default function AdminUsersPage() {
   const [newUserId, setNewUserId] = useState('');
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState<UserRole>('ANNOTATOR');
+  const [newPassword, setNewPassword] = useState('');
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -47,7 +48,7 @@ export default function AdminUsersPage() {
     e.preventDefault();
     setFormError('');
 
-    if (!newUserId.trim() || !newName.trim()) {
+    if (!newUserId.trim() || !newName.trim() || !newPassword.trim()) {
       setFormError('All fields are required');
       return;
     }
@@ -57,6 +58,7 @@ export default function AdminUsersPage() {
       user_id: newUserId.trim(),
       name: newName.trim(),
       role: newRole,
+      password: newPassword.trim(),
     });
 
     if (!result.success) {
@@ -65,10 +67,10 @@ export default function AdminUsersPage() {
       return;
     }
 
-    // Reset form and reload
     setNewUserId('');
     setNewName('');
     setNewRole('ANNOTATOR');
+    setNewPassword('');
     setShowModal(false);
     await loadUsers();
     setCreating(false);
@@ -76,6 +78,15 @@ export default function AdminUsersPage() {
 
   async function handleToggleActive(user: User) {
     await setUserActive(user.id, !user.active);
+    await loadUsers();
+  }
+
+  async function handleDelete(user: User) {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${user.name}" (${user.user_id})? This cannot be undone and will also delete all their evaluations.`
+    );
+    if (!confirmed) return;
+    await deleteUser(user.id);
     await loadUsers();
   }
 
@@ -165,9 +176,15 @@ export default function AdminUsersPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <button
                         onClick={() => handleToggleActive(user)}
-                        className={`font-medium ${user.active ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}`}
+                        className={`font-medium mr-4 ${user.active ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}`}
                       >
                         {user.active ? 'Deactivate' : 'Reactivate'}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(user)}
+                        className="font-medium text-gray-400 hover:text-red-600"
+                      >
+                        Delete
                       </button>
                     </td>
                   </tr>
@@ -226,8 +243,20 @@ export default function AdminUsersPage() {
                 </select>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  type="text"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="e.g. Trans@24"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+                <p className="text-xs text-gray-400 mt-1">Share this password with the user after creating their account.</p>
+              </div>
+
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800">
-                After creating, share the User ID and their assigned password with the user. Passwords are managed in <code>lib/auth.ts</code>.
+                Make sure to note down the password — it won't be shown again after creation.
               </div>
 
               <div className="flex gap-3 pt-2">

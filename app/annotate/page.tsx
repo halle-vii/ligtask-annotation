@@ -94,7 +94,7 @@ export default function AnnotatePage() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+      <div className="h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}>
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading prompts...</p>
@@ -105,7 +105,7 @@ export default function AnnotatePage() {
 
   if (!currentPrompt) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+      <div className="h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}>
         <p className="text-gray-600">No prompts available.</p>
       </div>
     );
@@ -114,9 +114,9 @@ export default function AnnotatePage() {
   const { question, options: safetyOptions } = getSafetyOptions(currentPrompt.task_type);
 
   return (
-    <div className="h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex overflow-hidden">
+    <div className="h-screen flex overflow-hidden" style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}>
       {/* Top-right Logout Button */}
-      <div className="fixed top-4 right-4 z-50">
+      <div className="fixed top-4 right-10 z-50">
         <LogoutButton />
       </div>
 
@@ -131,13 +131,15 @@ export default function AnnotatePage() {
             }}
             className={`w-12 h-12 flex items-center justify-center mb-2 rounded-lg transition-colors font-medium ${
               index === currentIndex
-                ? 'bg-blue-500 text-white font-bold'
+                ? 'text-white'
                 : completedIds.has(prompt.id)
                 ? 'text-gray-700'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
             style={
-              index !== currentIndex && completedIds.has(prompt.id)
+              index === currentIndex
+                ? { backgroundColor: '#1C45D5' }
+                : completedIds.has(prompt.id)
                 ? { backgroundColor: '#B2E3FF' }
                 : undefined
             }
@@ -177,7 +179,7 @@ export default function AnnotatePage() {
           <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
             {/* Context Section */}
             <div className="bg-blue-50 rounded-xl p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Context:</h3>
+              <h3 className="text-lg font-bold text-[#1C45D5] mb-4">Context:</h3>
               <div className="space-y-3 text-sm text-gray-800">
                 <p>
                   <strong>The nature of the interaction:</strong>{' '}
@@ -208,11 +210,11 @@ export default function AnnotatePage() {
 
             {/* English and Filipino Side by Side */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-blue-50 rounded-xl p-6">
+              <div className="bg-[#DBEAFF] rounded-xl p-6">
                 <h3 className="text-lg font-bold text-gray-900 mb-3">English:</h3>
                 <p className="text-gray-800 leading-relaxed">{currentPrompt.english_text}</p>
               </div>
-              <div className="bg-blue-50 rounded-xl p-6">
+              <div className="bg-[#DBEAFF] rounded-xl p-6">
                 <h3 className="text-lg font-bold text-gray-900 mb-3">Filipino:</h3>
                 <p className="text-gray-800 leading-relaxed">{currentPrompt.filipino_text}</p>
               </div>

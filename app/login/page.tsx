@@ -40,15 +40,18 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="w-full max-w-6xl flex shadow-2xl rounded-2xl overflow-hidden" style={{ height: '600px' }}>
         {/* Left Panel - Branding */}
-        <div className="w-1/2 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-900 p-12 flex flex-col justify-center text-white relative overflow-hidden">
-          <div className="relative z-10">
-            <h1 className="text-7xl font-bold mb-6 tracking-tight">LIGTASK</h1>
-            <p className="text-lg text-blue-100 leading-relaxed">
-              A platform for linguistic verification and contextual safety evaluation of English and Filipino prompts.
-            </p>
-          </div>
-          {/* Decorative gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+        <div
+          className="w-1/2 relative overflow-hidden flex flex-col justify-center p-12 text-white"
+          style={{
+            backgroundImage: 'url(/logingradient.png)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'bottom center',
+          }}
+        >
+          <h1 className="text-8xl font-bold mb-6 tracking-tighter">LIGTASK</h1>
+          <p className="text-lg text-white/90 leading-tight tracking-tight">
+            A platform for linguistic verification and contextual safety evaluation of English and Filipino prompts.
+          </p>
         </div>
 
         {/* Right Panel - Login Form */}
@@ -125,7 +128,7 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <p className="mt-6 text-center text-sm text-gray-600">
+            <p className="mt-6 text-center text-sm text-gray-600 tracking-tight">
               Get your{' '}
               <span className="text-blue-600 font-medium">login credentials</span>
               {' '}from the admins.

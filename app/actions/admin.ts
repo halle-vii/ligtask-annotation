@@ -22,6 +22,7 @@ export async function createUser(payload: {
   user_id: string;
   name: string;
   role: UserRole;
+  password: string;
 }) {
   // Check for duplicate user_id
   const { data: existing } = await supabase
@@ -38,11 +39,25 @@ export async function createUser(payload: {
     user_id: payload.user_id,
     name: payload.name,
     role: payload.role,
+    password: payload.password,
     active: true,
   });
 
   if (error) {
     console.error('createUser error:', error);
+    return { success: false, error: error.message };
+  }
+  return { success: true };
+}
+
+export async function deleteUser(id: string) {
+  const { error } = await supabase
+    .from('users')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('deleteUser error:', error);
     return { success: false, error: error.message };
   }
   return { success: true };
