@@ -1,19 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { dummyPrompts } from '@/lib/dummy-data';
 import { Prompt, TaskType } from '@/types/database';
 import LogoutButton from '@/app/components/LogoutButton';
+import { submitAnnotationEvaluation, getCompletedPromptIds } from '@/app/actions/evaluations';
+import { getPrompts } from '@/app/actions/prompts';
 
 export default function AnnotatePage() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [safetyLabel, setSafetyLabel] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Set of prompt UUIDs the user has already evaluated
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // Load prompts (for now using dummy data)
-    setPrompts(dummyPrompts);
+    // Fetch prompts and prior progress in parallel
+    Promise.all([getPrompts(), getCompletedPromptIds()]).then(([fetchedPrompts, ids]) => {
+      setPrompts(fetchedPrompts);
+      setCompletedIds(new Set(ids));
+      setLoading(false);
+    });
   }, []);
 
   const currentPrompt = prompts[currentIndex];
@@ -39,13 +47,13 @@ export default function AnnotatePage() {
   const getSafetyOptions = (taskType: TaskType) => {
     switch (taskType) {
       case 'NLU':
-        return ['Safe', 'Unsafe'];
+        return { question: 'Classify if the prompt is safe or unsafe', options: ['Safe', 'Unsafe'] };
       case 'NLR':
-        return ['Does not Violate Policy', 'Violates Policy'];
+        return { question: 'Determine whether the prompt violates any applicable policy', options: ['Does not Violate Policy', 'Violates Policy'] };
       case 'NLG':
-        return ['Answer', 'Refuse'];
+        return { question: 'Determine whether the LLM should answer or refuse the prompt', options: ['Answer', 'Refuse'] };
       default:
-        return [];
+        return { question: 'Classify the Prompt', options: [] };
     }
   };
 
@@ -56,22 +64,25 @@ export default function AnnotatePage() {
     }
 
     setSubmitting(true);
-
     try {
-      // TODO: Submit to Supabase
-      console.log('Submitting annotation:', {
+      const result = await submitAnnotationEvaluation({
         promptId: currentPrompt.id,
-        safetyLabel
+        safetyLabel,
       });
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (!result.success) {
+        alert(`Failed to save: ${result.error}`);
+        return;
+      }
 
-      // Move to next prompt or finish
+      // Mark as completed in sidebar
+      setCompletedIds(prev => new Set(prev).add(currentPrompt.id));
+
+      // Advance to next prompt, or stay if at end
       if (currentIndex < prompts.length - 1) {
         handleNext();
       } else {
-        alert('All prompts completed!');
+        resetForm();
       }
     } catch (error) {
       console.error('Error submitting:', error);
@@ -81,15 +92,26 @@ export default function AnnotatePage() {
     }
   };
 
-  if (!currentPrompt) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
-        <p>Loading prompts...</p>
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading prompts...</p>
+        </div>
       </div>
     );
   }
 
-  const safetyOptions = getSafetyOptions(currentPrompt.task_type);
+  if (!currentPrompt) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+        <p className="text-gray-600">No prompts available.</p>
+      </div>
+    );
+  }
+
+  const { question, options: safetyOptions } = getSafetyOptions(currentPrompt.task_type);
 
   return (
     <div className="h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex overflow-hidden">
@@ -100,18 +122,25 @@ export default function AnnotatePage() {
 
       {/* Left Sidebar - Prompt Numbers */}
       <div className="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4 overflow-y-auto flex-shrink-0">
-        {prompts.map((_, index) => (
+        {prompts.map((prompt, index) => (
           <button
             key={index}
             onClick={() => {
               setCurrentIndex(index);
               resetForm();
             }}
-            className={`w-12 h-12 flex items-center justify-center mb-2 rounded-lg transition-colors ${
+            className={`w-12 h-12 flex items-center justify-center mb-2 rounded-lg transition-colors font-medium ${
               index === currentIndex
                 ? 'bg-blue-500 text-white font-bold'
+                : completedIds.has(prompt.id)
+                ? 'text-gray-700'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
+            style={
+              index !== currentIndex && completedIds.has(prompt.id)
+                ? { backgroundColor: '#B2E3FF' }
+                : undefined
+            }
           >
             {index + 1}
           </button>
@@ -192,9 +221,9 @@ export default function AnnotatePage() {
             {/* Classification Question */}
             <div className="pt-4">
               <h3 className="text-lg font-bold text-red-600 mb-4">
-                Classify the Prompt
+                {question}
               </h3>
-              
+
               <div className="flex gap-4 mb-6">
                 {safetyOptions.map((option) => (
                   <label key={option} className="flex items-center cursor-pointer">
@@ -218,7 +247,7 @@ export default function AnnotatePage() {
                 disabled={submitting || !safetyLabel}
                 className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? 'Submitting...' : 'Submit'}
+                {submitting ? 'Saving...' : 'Submit'}
               </button>
             </div>
           </div>

@@ -1,20 +1,28 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { dummyPrompts } from '@/lib/dummy-data';
 import { Prompt } from '@/types/database';
 import LogoutButton from '@/app/components/LogoutButton';
+import { submitTranslationEvaluation, getCompletedPromptIds } from '@/app/actions/evaluations';
+import { getPrompts } from '@/app/actions/prompts';
 
 export default function TranslatePage() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [revisedTranslation, setRevisedTranslation] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Set of prompt UUIDs the user has already evaluated
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // Load prompts (for now using dummy data)
-    setPrompts(dummyPrompts);
+    // Fetch prompts and prior progress in parallel
+    Promise.all([getPrompts(), getCompletedPromptIds()]).then(([fetchedPrompts, ids]) => {
+      setPrompts(fetchedPrompts);
+      setCompletedIds(new Set(ids));
+      setLoading(false);
+    });
   }, []);
 
   const currentPrompt = prompts[currentIndex];
@@ -43,30 +51,32 @@ export default function TranslatePage() {
       alert('Please indicate whether the translation is accurate');
       return;
     }
-
     if (isCorrect === false && !revisedTranslation.trim()) {
       alert('Please provide a revised translation');
       return;
     }
 
     setSubmitting(true);
-
     try {
-      // TODO: Submit to Supabase
-      console.log('Submitting evaluation:', {
+      const result = await submitTranslationEvaluation({
         promptId: currentPrompt.id,
-        isCorrect,
-        revisedTranslation: isCorrect ? null : revisedTranslation
+        translationCorrect: isCorrect,
+        revisedTranslation: isCorrect ? null : revisedTranslation,
       });
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (!result.success) {
+        alert(`Failed to save: ${result.error}`);
+        return;
+      }
 
-      // Move to next prompt or finish
+      // Mark as completed in sidebar
+      setCompletedIds(prev => new Set(prev).add(currentPrompt.id));
+
+      // Advance to next unanswered prompt, or stay if at end
       if (currentIndex < prompts.length - 1) {
         handleNext();
       } else {
-        alert('All prompts completed!');
+        resetForm();
       }
     } catch (error) {
       console.error('Error submitting:', error);
@@ -82,10 +92,21 @@ export default function TranslatePage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading prompts...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!currentPrompt) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
-        <p>Loading prompts...</p>
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+        <p className="text-gray-600">No prompts available.</p>
       </div>
     );
   }
@@ -99,18 +120,25 @@ export default function TranslatePage() {
 
       {/* Left Sidebar - Prompt Numbers */}
       <div className="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4 overflow-y-auto flex-shrink-0">
-        {prompts.map((_, index) => (
+        {prompts.map((prompt, index) => (
           <button
             key={index}
             onClick={() => {
               setCurrentIndex(index);
               resetForm();
             }}
-            className={`w-12 h-12 flex items-center justify-center mb-2 rounded-lg transition-colors ${
+            className={`w-12 h-12 flex items-center justify-center mb-2 rounded-lg transition-colors font-medium ${
               index === currentIndex
                 ? 'bg-blue-500 text-white font-bold'
+                : completedIds.has(prompt.id)
+                ? 'text-gray-700'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
+            style={
+              index !== currentIndex && completedIds.has(prompt.id)
+                ? { backgroundColor: '#B2E3FF' }
+                : undefined
+            }
           >
             {index + 1}
           </button>
@@ -173,7 +201,7 @@ export default function TranslatePage() {
               <h3 className="text-lg font-bold text-red-600 mb-4">
                 Is the Filipino translation accurate?
               </h3>
-              
+
               <div className="flex gap-4 mb-6">
                 <label className="flex items-center cursor-pointer">
                   <input
@@ -188,7 +216,7 @@ export default function TranslatePage() {
                   />
                   <span className="ml-2 text-gray-900 font-medium">Yes</span>
                 </label>
-                
+
                 <label className="flex items-center cursor-pointer">
                   <input
                     type="radio"
@@ -225,7 +253,7 @@ export default function TranslatePage() {
                 disabled={submitting || isCorrect === null}
                 className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? 'Submitting...' : 'Submit'}
+                {submitting ? 'Saving...' : 'Submit'}
               </button>
             </div>
           </div>
