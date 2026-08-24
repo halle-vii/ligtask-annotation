@@ -112,53 +112,60 @@ export default function TranslatePage() {
   }
 
   return (
-    <div className="flex flex-col sm:flex-row h-screen overflow-hidden" style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}>
-      {/* Top-right Logout Button */}
-      <div className="fixed top-3 right-3 sm:top-4 sm:right-6 z-50">
-        <LogoutButton />
-      </div>
+    <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}>
 
-      {/* Sidebar – horizontal strip on mobile, vertical column on sm+ */}
-      <div className="
-        flex flex-row sm:flex-col
-        sm:w-16 bg-white border-b sm:border-b-0 sm:border-r border-gray-200
-        items-center sm:items-center
-        px-2 sm:px-0 py-2 sm:py-4
-        overflow-x-auto sm:overflow-x-hidden sm:overflow-y-auto
-        flex-shrink-0
-        gap-1.5 sm:gap-0
-      ">
-        {prompts.map((prompt, index) => (
-          <button
-            key={index}
-            onClick={() => {
-              setCurrentIndex(index);
-              resetForm();
-            }}
-            className={`w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 flex items-center justify-center sm:mb-2 rounded-lg transition-colors font-medium text-sm ${
-              index === currentIndex
-                ? 'text-white'
-                : completedIds.has(prompt.id)
-                ? 'text-gray-700'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-            style={
-              index === currentIndex
-                ? { backgroundColor: '#1C45D5' }
-                : completedIds.has(prompt.id)
-                ? { backgroundColor: '#B2E3FF' }
-                : undefined
-            }
-          >
-            {index + 1}
-          </button>
-        ))}
-      </div>
+      {/* Top Header Bar */}
+      <header className="bg-white shadow flex-shrink-0">
+        <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Translator Dashboard</h1>
+          <LogoutButton />
+        </div>
+      </header>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="flex items-start justify-center p-4 sm:p-6 lg:p-8 min-h-full">
-          <div className="w-full max-w-4xl pt-14">
+      {/* Below header: sidebar + main content */}
+      <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
+
+        {/* Sidebar – horizontal strip on mobile, vertical column on sm+ */}
+        <div className="
+          flex flex-row sm:flex-col
+          sm:w-16 bg-white border-b sm:border-b-0 sm:border-r border-gray-200
+          items-center sm:items-center
+          px-2 sm:px-0 py-2 sm:py-4
+          overflow-x-auto sm:overflow-x-hidden sm:overflow-y-auto
+          flex-shrink-0
+          gap-1.5 sm:gap-0
+        ">
+          {prompts.map((prompt, index) => (
+            <button
+              key={index}
+              onClick={() => {
+                setCurrentIndex(index);
+                resetForm();
+              }}
+              className={`w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 flex items-center justify-center sm:mb-2 rounded-lg transition-colors font-medium text-sm ${
+                index === currentIndex
+                  ? 'text-white'
+                  : completedIds.has(prompt.id)
+                  ? 'text-gray-700'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              style={
+                index === currentIndex
+                  ? { backgroundColor: '#1C45D5' }
+                  : completedIds.has(prompt.id)
+                  ? { backgroundColor: '#B2E3FF' }
+                  : undefined
+              }
+            >
+              {index + 1}
+            </button>
+          ))}
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="flex items-start justify-center p-4 sm:p-6 lg:p-8 min-h-full">
+            <div className="w-full max-w-4xl">
             {/* Navigation Arrows */}
             <div className="flex justify-between mb-4">
               <button
@@ -279,5 +286,6 @@ export default function TranslatePage() {
         </div>
       </div>
     </div>
+  </div>
   );
 }
