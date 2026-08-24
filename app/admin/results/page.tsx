@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getEvaluationStats, getRecentEvaluations } from '@/app/actions/admin';
 
@@ -161,9 +161,8 @@ export default function AdminResultsPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filtered.map(e => (
-                  <>
+                  <React.Fragment key={e.id}>
                     <tr
-                      key={e.id}
                       className="hover:bg-gray-50 cursor-pointer"
                       onClick={() => setExpandedId(expandedId === e.id ? null : e.id)}
                     >
@@ -222,7 +221,7 @@ export default function AdminResultsPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
