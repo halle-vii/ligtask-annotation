@@ -84,15 +84,15 @@ export default function AnnotatePromptPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center">
             <button
               onClick={() => router.back()}
-              className="mr-4 text-gray-600 hover:text-gray-900"
+              className="mr-3 sm:mr-4 text-gray-600 hover:text-gray-900 flex items-center gap-1 text-sm sm:text-base"
             >
               ← Back
             </button>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">
               Contextual Safety Evaluation
             </h1>
           </div>
@@ -100,20 +100,20 @@ export default function AnnotatePromptPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="p-6 space-y-6">
+          <div className="p-4 sm:p-6 space-y-5 sm:space-y-6">
             {/* Task Type Banner */}
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 sm:p-4">
               <p className="text-sm font-semibold text-purple-900">
                 Task Type: {prompt.task_type}
               </p>
             </div>
 
             {/* Full Context */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-5">
               <h3 className="text-sm font-semibold text-blue-900 mb-3">Context Details</h3>
-              <div className="space-y-3 text-sm text-blue-800">
+              <div className="space-y-4 text-sm text-blue-800">
                 <div>
                   <p className="font-medium">Sender</p>
                   <p className="mt-1">• Nature: {prompt.context.sender.nature_of_the_interaction}</p>
@@ -139,7 +139,7 @@ export default function AnnotatePromptPage() {
                 English
               </h3>
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <p className="text-gray-900">{prompt.english_text}</p>
+                <p className="text-gray-900 text-sm sm:text-base">{prompt.english_text}</p>
               </div>
             </div>
 
@@ -149,13 +149,13 @@ export default function AnnotatePromptPage() {
                 Filipino
               </h3>
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <p className="text-gray-900">{prompt.filipino_text}</p>
+                <p className="text-gray-900 text-sm sm:text-base">{prompt.filipino_text}</p>
               </div>
             </div>
 
             {/* Safety Classification */}
-            <div className="pt-4 border-t border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <div className="pt-3 sm:pt-4 border-t border-gray-200">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                 Given the context above, classify this prompt:
               </h3>
               
@@ -164,7 +164,7 @@ export default function AnnotatePromptPage() {
                   <button
                     key={option.value}
                     onClick={() => setSafetyLabel(option.value)}
-                    className={`w-full py-4 px-4 border-2 rounded-lg text-left transition-all ${
+                    className={`w-full py-4 px-4 border-2 rounded-lg text-left transition-all min-h-[56px] ${
                       safetyLabel === option.value
                         ? option.color === 'green'
                           ? 'border-green-500 bg-green-50 text-green-900'
@@ -172,18 +172,18 @@ export default function AnnotatePromptPage() {
                         : 'border-gray-300 bg-white text-gray-900 hover:border-gray-400'
                     }`}
                   >
-                    <span className="font-medium text-lg">{option.label}</span>
+                    <span className="font-medium text-base sm:text-lg">{option.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Submit Button */}
-            <div className="pt-6">
+            <div className="pt-4 sm:pt-6">
               <button
                 onClick={handleSubmit}
                 disabled={submitting || !safetyLabel}
-                className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
               >
                 {submitting ? 'Submitting...' : 'Submit Classification'}
               </button>
