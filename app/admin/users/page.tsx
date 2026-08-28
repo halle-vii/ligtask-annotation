@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getUsers, createUser, setUserActive, deleteUser } from '@/app/actions/admin';
+import { getUsers, createUser, setUserActive, deleteUser, getUserProgress } from '@/app/actions/admin';
 import { UserRole } from '@/types/database';
 
 interface User {
@@ -14,6 +14,18 @@ interface User {
   created_at: string;
 }
 
+interface UserProgress {
+  id: string;
+  user_id: string;
+  name: string;
+  role: UserRole;
+  active: boolean;
+  annotated: number;
+  translated: number;
+  totalAnnotations: number;
+  totalTranslations: number;
+}
+
 const ROLE_COLORS: Record<UserRole, string> = {
   ADMIN: 'bg-purple-100 text-purple-800',
   TRANSLATOR: 'bg-blue-100 text-blue-800',
@@ -22,6 +34,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [progress, setProgress] = useState<UserProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
 
@@ -39,8 +52,9 @@ export default function AdminUsersPage() {
 
   async function loadUsers() {
     setLoading(true);
-    const data = await getUsers();
+    const [data, progressData] = await Promise.all([getUsers(), getUserProgress()]);
     setUsers(data as User[]);
+    setProgress(progressData as UserProgress[]);
     setLoading(false);
   }
 
@@ -191,6 +205,74 @@ export default function AdminUsersPage() {
                 ))}
               </tbody>
             </table>
+          )}
+        </div>
+        {/* Progress Section */}
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">User Progress</h2>
+            <p className="text-sm text-gray-500 mt-0.5">How many prompts each user has evaluated</p>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {progress.filter(u => u.role !== 'ADMIN').map(user => {
+                const isTranslator = user.role === 'TRANSLATOR';
+                const count = isTranslator ? user.translated : user.annotated;
+                const total = isTranslator ? user.totalTranslations : user.totalAnnotations;
+                const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                const isComplete = count === total && total > 0;
+
+                return (
+                  <div key={user.id} className={`px-6 py-4 ${!user.active ? 'opacity-50' : ''}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <span className="text-sm font-semibold text-gray-900">{user.name}</span>
+                          <span className="ml-2 text-xs font-mono text-gray-400">{user.user_id}</span>
+                        </div>
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${ROLE_COLORS[user.role]}`}>
+                          {user.role}
+                        </span>
+                        {!user.active && (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-500">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isComplete && (
+                          <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        )}
+                        <span className={`text-sm font-semibold ${isComplete ? 'text-green-600' : 'text-gray-700'}`}>
+                          {count}/{total}
+                        </span>
+                        <span className="text-xs text-gray-400">({pct}%)</span>
+                      </div>
+                    </div>
+                    {/* Progress bar */}
+                    <div className="w-full bg-gray-100 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${isComplete ? 'bg-green-500' : 'bg-blue-500'}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+
+              {progress.filter(u => u.role !== 'ADMIN').length === 0 && (
+                <div className="px-6 py-8 text-center text-sm text-gray-400">
+                  No translators or annotators found.
+                </div>
+              )}
+            </div>
           )}
         </div>
       </main>

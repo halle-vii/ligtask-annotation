@@ -76,7 +76,45 @@ export async function setUserActive(id: string, active: boolean) {
   return { success: true };
 }
 
-// ─── Prompts ──────────────────────────────────────────────────────────────────
+export async function getUserProgress() {
+  // Get all users
+  const { data: users, error: usersError } = await supabase
+    .from('users')
+    .select('id, user_id, name, role, active')
+    .order('role', { ascending: true });
+
+  if (usersError || !users) return [];
+
+  // Get total prompt counts per task type
+  const { data: promptCounts } = await supabase
+    .from('prompts')
+    .select('task_type');
+
+  const totalNLU = (promptCounts ?? []).filter(p => p.task_type === 'NLU').length;
+  const totalNLR = (promptCounts ?? []).filter(p => p.task_type === 'NLR').length;
+  const totalNLG = (promptCounts ?? []).filter(p => p.task_type === 'NLG').length;
+  const totalAnnotations = totalNLU + totalNLR + totalNLG;
+  const totalTranslations = (promptCounts ?? []).length;
+
+  // Get evaluation counts per user
+  const { data: evaluations } = await supabase
+    .from('evaluations')
+    .select('user_id, safety_label, translation_correct');
+
+  return users.map(user => {
+    const userEvals = (evaluations ?? []).filter(e => e.user_id === user.id);
+    const annotated = userEvals.filter(e => e.safety_label !== null).length;
+    const translated = userEvals.filter(e => e.translation_correct !== null).length;
+
+    return {
+      ...user,
+      annotated,
+      translated,
+      totalAnnotations,
+      totalTranslations,
+    };
+  });
+}
 
 export async function getAdminPrompts() {
   const { data, error } = await supabase

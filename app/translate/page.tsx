@@ -191,29 +191,32 @@ export default function TranslatePage() {
             </div>
 
             {/* Quiz Card */}
-            <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6">
-              {/* English box */}
-              <div className="bg-blue-50 rounded-xl p-4 sm:p-6 relative z-10 shadow-sm">
-                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3">English:</h3>
-                <p className="text-sm sm:text-base text-gray-800 leading-relaxed">{currentPrompt.english_text}</p>
-              </div>
-
-              {/* Filipino box */}
-              <div className="bg-blue-100 rounded-xl p-4 sm:p-6">
-                <div className="flex justify-between items-start mb-2 sm:mb-3">
-                  <h3 className="text-base sm:text-lg font-bold text-gray-900">Filipino:</h3>
-                  <button
-                    onClick={handleCopyFilipino}
-                    className="text-blue-600 hover:text-blue-700 p-1"
-                    title="Copy to revision box"
-                    aria-label="Copy Filipino text to revision box"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                  </button>
+            <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+              {/* Stacked prompt boxes — English overlaps top of Filipino */}
+              <div className="flex flex-col mb-5 sm:mb-6">
+                {/* English box — on top */}
+                <div className="bg-blue-50 rounded-xl p-4 sm:p-6 relative z-10 shadow-sm">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3">English:</h3>
+                  <p className="text-sm sm:text-base text-gray-800 leading-relaxed">{currentPrompt.english_text}</p>
                 </div>
-                <p className="text-sm sm:text-base text-gray-800 leading-relaxed">{currentPrompt.filipino_text}</p>
+
+                {/* Filipino box — tucked behind, pulled up 16px under English */}
+                <div className="bg-blue-100 rounded-xl px-4 sm:px-6 pb-4 sm:pb-6 pt-8 -mt-4 relative z-0">
+                  <div className="flex justify-between items-start mb-2 sm:mb-3">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900">Filipino:</h3>
+                    <button
+                      onClick={handleCopyFilipino}
+                      className="text-blue-600 hover:text-blue-700 p-1"
+                      title="Copy to revision box"
+                      aria-label="Copy Filipino text to revision box"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                  </div>
+                  <p className="text-sm sm:text-base text-gray-800 leading-relaxed">{currentPrompt.filipino_text}</p>
+                </div>
               </div>
 
               {/* Question */}

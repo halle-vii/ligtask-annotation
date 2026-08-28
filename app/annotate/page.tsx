@@ -1,287 +1,192 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Prompt, TaskType } from '@/types/database';
+import { useRouter } from 'next/navigation';
 import LogoutButton from '@/app/components/LogoutButton';
-import { submitAnnotationEvaluation, getCompletedPromptIds } from '@/app/actions/evaluations';
+import { getCompletedPromptIds } from '@/app/actions/evaluations';
 import { getPrompts } from '@/app/actions/prompts';
+import { Prompt } from '@/types/database';
 
-export default function AnnotatePage() {
-  const [prompts, setPrompts] = useState<Prompt[]>([]);
+const PARTS = [
+  {
+    taskType: 'NLU',
+    label: 'Part 1: Natural Language Understanding (NLU)',
+    description: 'Classify whether the prompt is Safe or Unsafe given the provided context.',
+  },
+  {
+    taskType: 'NLR',
+    label: 'Part 2: Natural Language Reasoning (NLR)',
+    description: 'Determine whether the prompt violates any applicable policy given the provided context.',
+  },
+  {
+    taskType: 'NLG',
+    label: 'Part 3: Natural Language Generation (NLG)',
+    description: 'Determine whether the LLM should answer or refuse the prompt given the provided context.',
+  },
+];
+
+const INSTRUCTIONS = [
+  {
+    heading: 'What is this task?',
+    body: 'You will be evaluating a set of English–Filipino bilingual prompts to assess their safety in context. Each prompt is accompanied by a detailed context describing the sender, recipient, and purpose of the interaction.',
+  },
+  {
+    heading: 'How to answer',
+    body: 'Read the full context carefully before making a judgment. Your classification should be based on whether the prompt is appropriate given that specific context — not on the surface-level content alone.',
+  },
+  {
+    heading: 'NLU prompts',
+    body: 'Choose Safe if the prompt is appropriate given the context. Choose Unsafe if the prompt poses a risk or harm regardless of context.',
+  },
+  {
+    heading: 'NLR prompts',
+    body: 'Choose Does not Violate Policy if the prompt is permissible in the given context. Choose Violates Policy if the prompt breaches applicable guidelines.',
+  },
+  {
+    heading: 'NLG prompts',
+    body: 'Choose Answer if an LLM should respond to the prompt in this context. Choose Refuse if the LLM should decline to respond.',
+  },
+  {
+    heading: 'Saving your progress',
+    body: 'Your answers are saved automatically after each submission. You can leave and return at any time — your progress will be restored.',
+  },
+];
+
+export default function AnnotateHubPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [safetyLabel, setSafetyLabel] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  // Set of prompt UUIDs the user has already evaluated
-  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+  // Map of taskType -> { completed: number, total: number }
+  const [progress, setProgress] = useState<Record<string, { completed: number; total: number }>>({
+    NLU: { completed: 0, total: 0 },
+    NLR: { completed: 0, total: 0 },
+    NLG: { completed: 0, total: 0 },
+  });
 
   useEffect(() => {
-    // Fetch prompts and prior progress in parallel
-    Promise.all([getPrompts(), getCompletedPromptIds()]).then(([fetchedPrompts, ids]) => {
-      setPrompts(fetchedPrompts);
-      setCompletedIds(new Set(ids));
+    Promise.all([getPrompts(), getCompletedPromptIds()]).then(([prompts, completedIds]) => {
+      const completedSet = new Set(completedIds);
+
+      const counts: Record<string, { completed: number; total: number }> = {
+        NLU: { completed: 0, total: 0 },
+        NLR: { completed: 0, total: 0 },
+        NLG: { completed: 0, total: 0 },
+      };
+
+      (prompts as Prompt[]).forEach((p) => {
+        if (!counts[p.task_type]) return;
+        counts[p.task_type].total += 1;
+        if (completedSet.has(p.id)) counts[p.task_type].completed += 1;
+      });
+
+      setProgress(counts);
       setLoading(false);
     });
   }, []);
 
-  const currentPrompt = prompts[currentIndex];
-
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-      resetForm();
-    }
-  };
-
-  const handleNext = () => {
-    if (currentIndex < prompts.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      resetForm();
-    }
-  };
-
-  const resetForm = () => {
-    setSafetyLabel(null);
-  };
-
-  const getSafetyOptions = (taskType: TaskType) => {
-    switch (taskType) {
-      case 'NLU':
-        return { question: 'Classify if the prompt is safe or unsafe', options: ['Safe', 'Unsafe'] };
-      case 'NLR':
-        return { question: 'Determine whether the prompt violates any applicable policy', options: ['Does not Violate Policy', 'Violates Policy'] };
-      case 'NLG':
-        return { question: 'Determine whether the LLM should answer or refuse the prompt', options: ['Answer', 'Refuse'] };
-      default:
-        return { question: 'Classify the Prompt', options: [] };
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!safetyLabel) {
-      alert('Please select a classification');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const result = await submitAnnotationEvaluation({
-        promptId: currentPrompt.id,
-        safetyLabel,
-      });
-
-      if (!result.success) {
-        alert(`Failed to save: ${result.error}`);
-        return;
-      }
-
-      // Mark as completed in sidebar
-      setCompletedIds(prev => new Set(prev).add(currentPrompt.id));
-
-      // Advance to next prompt, or stay if at end
-      if (currentIndex < prompts.length - 1) {
-        handleNext();
-      } else {
-        resetForm();
-      }
-    } catch (error) {
-      console.error('Error submitting:', error);
-      alert('Failed to submit. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}>
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading prompts...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!currentPrompt) {
-    return (
-      <div className="h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}>
-        <p className="text-gray-600">No prompts available.</p>
-      </div>
-    );
-  }
-
-  const { question, options: safetyOptions } = getSafetyOptions(currentPrompt.task_type);
+  const totalCompleted = Object.values(progress).reduce((sum, p) => sum + p.completed, 0);
+  const totalPrompts = Object.values(progress).reduce((sum, p) => sum + p.total, 0);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}>
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}
+    >
+      {/* Top bar */}
+      <div className="flex justify-end p-4">
+        <LogoutButton />
+      </div>
 
-      {/* Top Header Bar */}
-      <header className="bg-white shadow flex-shrink-0">
-        <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
-          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Annotator Dashboard</h1>
-          <LogoutButton />
-        </div>
-      </header>
+      {/* Centered card */}
+      <div className="flex-1 flex items-center justify-center px-4 pb-12">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-8 space-y-8">
 
-      {/* Below header: sidebar + main content */}
-      <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
-
-        {/* Sidebar – horizontal strip on mobile, vertical column on sm+ */}
-        <div className="
-          flex flex-row sm:flex-col
-          sm:w-16 bg-white border-b sm:border-b-0 sm:border-r border-gray-200
-          items-center sm:items-center
-          px-2 sm:px-0 py-2 sm:py-4
-          overflow-x-auto sm:overflow-x-hidden sm:overflow-y-auto
-          flex-shrink-0
-          gap-1.5 sm:gap-0
-        ">
-          {prompts.map((prompt, index) => (
-            <button
-              key={index}
-              onClick={() => {
-                setCurrentIndex(index);
-                resetForm();
-              }}
-              className={`w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 flex items-center justify-center sm:mb-2 rounded-lg transition-colors font-medium text-sm ${
-                index === currentIndex
-                  ? 'text-white'
-                  : completedIds.has(prompt.id)
-                  ? 'text-gray-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              style={
-                index === currentIndex
-                  ? { backgroundColor: '#1C45D5' }
-                  : completedIds.has(prompt.id)
-                  ? { backgroundColor: '#B2E3FF' }
-                  : undefined
-              }
-            >
-              {index + 1}
-            </button>
-          ))}
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="flex items-start justify-center p-4 sm:p-6 lg:p-8 min-h-full">
-            <div className="w-full max-w-5xl">
-            {/* Navigation Arrows */}
-            <div className="flex justify-between mb-4">
-              <button
-                onClick={handlePrevious}
-                disabled={currentIndex === 0}
-                className="p-2 sm:p-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                aria-label="Previous prompt"
-              >
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button
-                onClick={handleNext}
-                disabled={currentIndex === prompts.length - 1}
-                className="p-2 sm:p-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                aria-label="Next prompt"
-              >
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Quiz Card */}
-            <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6">
-              {/* Context Section */}
-              <div className="bg-blue-50 rounded-xl p-4 sm:p-6">
-                <h3 className="text-base sm:text-lg font-bold text-[#1C45D5] mb-3 sm:mb-4">Context:</h3>
-                <div className="space-y-2 sm:space-y-3 text-sm text-gray-800">
-                  <p>
-                    <strong>The nature of the interaction:</strong>{' '}
-                    {currentPrompt.context.sender.nature_of_the_interaction}
-                  </p>
-                  <p>
-                    <strong>The platform type:</strong>{' '}
-                    {currentPrompt.context.sender.platform_type}
-                  </p>
-                  <p>
-                    <strong>The user type:</strong>{' '}
-                    {currentPrompt.context.recipient.type}
-                  </p>
-                  <p>
-                    <strong>The background of the recipient:</strong>{' '}
-                    {currentPrompt.context.recipient.background}
-                  </p>
-                  <p>
-                    <strong>Purpose of the Chatbot:</strong>{' '}
-                    {currentPrompt.context.transmission_principle.sender_purpose}
-                  </p>
-                  <p>
-                    <strong>Confidentiality of the conversation:</strong>{' '}
-                    {currentPrompt.context.transmission_principle.confidentiality}
-                  </p>
-                </div>
-              </div>
-
-              {/* English and Filipino – stacked on mobile, side-by-side on sm+ */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div className="bg-[#DBEAFF] rounded-xl p-4 sm:p-6">
-                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3">English:</h3>
-                  <p className="text-sm sm:text-base text-gray-800 leading-relaxed">{currentPrompt.english_text}</p>
-                </div>
-                <div className="bg-[#DBEAFF] rounded-xl p-4 sm:p-6">
-                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3">Filipino:</h3>
-                  <p className="text-sm sm:text-base text-gray-800 leading-relaxed">{currentPrompt.filipino_text}</p>
-                </div>
-              </div>
-
-              {/* Classification Question */}
-              <div className="pt-2 sm:pt-4">
-                <h3 className="text-base sm:text-lg font-bold text-red-600 mb-3 sm:mb-4">
-                  {question}
-                </h3>
-
-                {/* Action buttons – full-width on mobile, inline on sm+ */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 sm:mb-6">
-                  {safetyOptions.map((option) => (
-                    <label
-                      key={option}
-                      className={`flex items-center gap-3 cursor-pointer rounded-xl border-2 px-4 py-3 transition-all ${
-                        safetyLabel === option
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 bg-gray-50 hover:border-gray-300'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="safety"
-                        checked={safetyLabel === option}
-                        onChange={() => setSafetyLabel(option)}
-                        className="w-5 h-5 text-blue-600 flex-shrink-0"
-                      />
-                      <span className="text-gray-900 font-medium text-sm sm:text-base">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <div className="flex justify-end pt-2 sm:pt-4">
-                <button
-                  onClick={handleSubmit}
-                  disabled={submitting || !safetyLabel}
-                  className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
-                >
-                  {submitting ? 'Saving...' : 'Submit'}
-                </button>
-              </div>
-            </div>
+          {/* Header */}
+          <div>
+            <h1 className="text-3xl font-bold text-[#1C45D5] mb-2">Welcome!</h1>
+            {loading ? (
+              <p className="text-sm text-gray-400">Loading your progress...</p>
+            ) : (
+              <p className="text-sm text-gray-500">
+                Overall progress:{' '}
+                <span className="font-semibold text-gray-700">{totalCompleted}/{totalPrompts}</span> prompts annotated
+              </p>
+            )}
           </div>
+
+          {/* Instructions accordion */}
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Instructions</h2>
+            {INSTRUCTIONS.map((item, i) => (
+              <InstructionItem key={i} heading={item.heading} body={item.body} />
+            ))}
+          </div>
+
+          {/* Parts */}
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Dataset Parts</h2>
+            {PARTS.map((part) => {
+              const p = progress[part.taskType];
+              const isComplete = !loading && p.total > 0 && p.completed === p.total;
+
+              return (
+                <button
+                  key={part.taskType}
+                  onClick={() => router.push(`/annotate/${part.taskType}`)}
+                  className="w-full text-left bg-blue-50 hover:bg-blue-100 rounded-xl px-5 py-4 transition-colors border border-blue-100"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-gray-900 text-sm">{part.label}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{part.description}</p>
+                    </div>
+                    <div className="ml-4 flex-shrink-0 text-sm font-semibold text-gray-600 flex items-center gap-1.5">
+                      {loading ? (
+                        <span className="text-gray-300">—</span>
+                      ) : isComplete ? (
+                        <>
+                          <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-green-600">{p.completed}/{p.total}</span>
+                        </>
+                      ) : (
+                        <span>{p.completed}/{p.total}</span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
         </div>
       </div>
     </div>
-  </div>
+  );
+}
+
+// Collapsible instruction item
+function InstructionItem({ heading, body }: { heading: string; body: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex justify-between items-center px-4 py-3 text-left bg-gray-50 hover:bg-gray-100 transition-colors"
+      >
+        <span className="text-sm font-medium text-gray-800">{heading}</span>
+        <svg
+          className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="px-4 py-3 text-sm text-gray-700 bg-white leading-relaxed">
+          {body}
+        </div>
+      )}
+    </div>
   );
 }
