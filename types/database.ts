@@ -20,9 +20,10 @@ export interface Context {
   };
   recipient: {
     type: string;
-    background: string;
+    background: string | { [key: string]: any };
   };
   transmission_principle: {
+    urgency?: string;
     sender_purpose: string;
     confidentiality: string;
     source_accountability: string;
@@ -31,11 +32,13 @@ export interface Context {
 
 export interface Prompt {
   id: string;
+  task_instance_id: string;
   base_id: string;
   english_text: string;
   filipino_text: string;
   task_type: TaskType;
   category: string;
+  instruction?: string;
   context: Context;
   context_intended_to_be_safe: boolean;
   created_at: string;

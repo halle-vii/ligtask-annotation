@@ -134,6 +134,7 @@ export default function TranslatePage() {
           overflow-x-auto sm:overflow-x-hidden sm:overflow-y-auto
           flex-shrink-0
           gap-1.5 sm:gap-0
+          scrollbar-hide
         ">
           {prompts.map((prompt, index) => (
             <button

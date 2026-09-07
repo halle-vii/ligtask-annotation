@@ -11,7 +11,7 @@ interface Evaluation {
   revised_translation: string | null;
   safety_label: string | null;
   users: { user_id: string; name: string; role: string } | null;
-  prompts: { base_id: string; task_type: string; category: string } | null;
+  prompts: { base_id: string; task_instance_id: string; task_type: string; category: string } | null;
 }
 
 type TabType = 'all' | 'translations' | 'annotations';
@@ -42,7 +42,8 @@ export default function AdminResultsPage() {
   function handleExport() {
     const rows = filtered.map(e => ({
       evaluation_id: e.id,
-      prompt_id: e.prompts?.base_id ?? '',
+      base_id: e.prompts?.base_id ?? '',
+      task_instance_id: e.prompts?.task_instance_id ?? '',
       task_type: e.prompts?.task_type ?? '',
       category: e.prompts?.category ?? '',
       annotator_id: e.users?.user_id ?? '',
@@ -152,7 +153,7 @@ export default function AdminResultsPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Prompt', 'Task', 'Annotator', 'Result', 'Submitted', ''].map((h, i) => (
+                  {['Base ID', 'Task Instance ID', 'Task', 'Annotator', 'Result', 'Submitted', ''].map((h, i) => (
                     <th key={i} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {h}
                     </th>
@@ -168,6 +169,9 @@ export default function AdminResultsPage() {
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-mono font-medium text-gray-900">
                         {e.prompts?.base_id ?? '—'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700">
+                        {e.prompts?.task_instance_id ?? '—'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -210,7 +214,7 @@ export default function AdminResultsPage() {
                     {/* Expanded row — shows revision if present */}
                     {expandedId === e.id && (
                       <tr key={`${e.id}-expanded`} className="bg-gray-50">
-                        <td colSpan={6} className="px-6 py-4 space-y-2 text-sm">
+                        <td colSpan={7} className="px-6 py-4 space-y-2 text-sm">
                           <p><span className="font-medium text-gray-700">Category:</span> {e.prompts?.category ?? '—'}</p>
                           {e.revised_translation && (
                             <p>

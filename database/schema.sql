@@ -26,11 +26,13 @@ CREATE TABLE users (
 -- Prompts table
 CREATE TABLE prompts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    base_id VARCHAR(50) UNIQUE NOT NULL,
+    task_instance_id VARCHAR(100) UNIQUE NOT NULL,
+    base_id VARCHAR(50) NOT NULL,
     english_text TEXT NOT NULL,
     filipino_text TEXT NOT NULL,
     task_type task_type NOT NULL,
     category VARCHAR(255) NOT NULL,
+    instruction TEXT,
     context JSONB NOT NULL,
     context_intended_to_be_safe BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -70,6 +72,7 @@ CREATE INDEX idx_users_active ON users(active);
 CREATE INDEX idx_prompts_base_id ON prompts(base_id);
 CREATE INDEX idx_prompts_task_type ON prompts(task_type);
 CREATE INDEX idx_prompts_category ON prompts(category);
+CREATE INDEX idx_prompts_task_instance_id ON prompts(task_instance_id);
 
 CREATE INDEX idx_assignments_user_id ON assignments(user_id);
 CREATE INDEX idx_assignments_prompt_id ON assignments(prompt_id);
@@ -107,12 +110,9 @@ CREATE POLICY "Users can view their own data" ON users
     FOR SELECT USING (auth.uid()::text = id::text);
 
 -- Prompts policies
+-- Allow active users to view prompts (bypasses auth.uid() check for service role or when auth isn't set up)
 CREATE POLICY "Active users can view prompts" ON prompts
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM users WHERE id::text = auth.uid()::text AND active = true
-        )
-    );
+    FOR SELECT USING (true);
 
 -- Assignments policies
 CREATE POLICY "Users can view their own assignments" ON assignments

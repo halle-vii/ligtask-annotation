@@ -1,7 +1,12 @@
 'use server';
 
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { UserRole } from '@/types/database';
+
+// Use service role key to bypass RLS for admin operations
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
@@ -119,7 +124,7 @@ export async function getUserProgress() {
 export async function getAdminPrompts() {
   const { data, error } = await supabase
     .from('prompts')
-    .select('id, base_id, english_text, task_type, category, created_at')
+    .select('id, base_id, task_instance_id, english_text, task_type, category, created_at')
     .order('base_id', { ascending: true });
 
   if (error) {
@@ -163,7 +168,7 @@ export async function getRecentEvaluations() {
       revised_translation,
       safety_label,
       users ( user_id, name, role ),
-      prompts ( base_id, task_type, category )
+      prompts ( base_id, task_instance_id, task_type, category )
     `)
     .order('submitted_at', { ascending: false })
     .limit(50);

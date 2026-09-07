@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Prompt, TaskType } from '@/types/database';
 import LogoutButton from '@/app/components/LogoutButton';
 import { submitAnnotationEvaluation, getCompletedPromptIds } from '@/app/actions/evaluations';
-import { getPrompts } from '@/app/actions/prompts';
+import { getPromptsForAnnotation } from '@/app/actions/prompts';
 
 const TASK_META: Record<string, { label: string; question: string; options: string[] }> = {
   NLU: {
@@ -45,10 +45,8 @@ export default function AnnotateTaskPage() {
       return;
     }
 
-    Promise.all([getPrompts(), getCompletedPromptIds()]).then(([allPrompts, ids]) => {
-      // Filter to only this task type
-      const filtered = (allPrompts as Prompt[]).filter(p => p.task_type === taskType);
-      setPrompts(filtered);
+    Promise.all([getPromptsForAnnotation(taskType), getCompletedPromptIds()]).then(([allPrompts, ids]) => {
+      setPrompts(allPrompts as Prompt[]);
       setCompletedIds(new Set(ids));
       setLoading(false);
     });
@@ -227,11 +225,39 @@ export default function AnnotateTaskPage() {
                   <p><strong>The nature of the interaction:</strong>{' '}{currentPrompt.context.sender.nature_of_the_interaction}</p>
                   <p><strong>The platform type:</strong>{' '}{currentPrompt.context.sender.platform_type}</p>
                   <p><strong>The user type:</strong>{' '}{currentPrompt.context.recipient.type}</p>
-                  <p><strong>The background of the recipient:</strong>{' '}{currentPrompt.context.recipient.background}</p>
+                  
+                  {/* Handle background - can be string or object */}
+                  {typeof currentPrompt.context.recipient.background === 'object' ? (
+                    <div>
+                      <p className="font-bold mb-2">The background of the recipient:</p>
+                      <div className="ml-4 space-y-1.5">
+                        {Object.entries(currentPrompt.context.recipient.background).map(([key, value]) => (
+                          <p key={key}>
+                            <strong className="capitalize">{key.replace(/_/g, ' ')}:</strong>{' '}
+                            {String(value)}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p><strong>The background of the recipient:</strong>{' '}{currentPrompt.context.recipient.background}</p>
+                  )}
+                  
+                  {currentPrompt.context.transmission_principle.urgency && (
+                    <p><strong>Urgency:</strong>{' '}{currentPrompt.context.transmission_principle.urgency}</p>
+                  )}
                   <p><strong>Purpose of the Chatbot:</strong>{' '}{currentPrompt.context.transmission_principle.sender_purpose}</p>
                   <p><strong>Confidentiality of the conversation:</strong>{' '}{currentPrompt.context.transmission_principle.confidentiality}</p>
                 </div>
               </div>
+
+              {/* Instruction */}
+              {currentPrompt.instruction && (
+                <div className="bg-blue-50 rounded-xl p-6">
+                  <h3 className="text-lg font-bold text-[#1C45D5] mb-3">Instruction:</h3>
+                  <p className="text-sm text-gray-800 leading-relaxed">{currentPrompt.instruction}</p>
+                </div>
+              )}
 
               {/* English + Filipino */}
               <div className="grid grid-cols-2 gap-4">

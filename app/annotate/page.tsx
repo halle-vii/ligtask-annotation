@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import LogoutButton from '@/app/components/LogoutButton';
 import { getCompletedPromptIds } from '@/app/actions/evaluations';
-import { getPrompts } from '@/app/actions/prompts';
+import { getPromptsForAnnotation } from '@/app/actions/prompts';
 import { Prompt } from '@/types/database';
 
 const PARTS = [
@@ -63,7 +63,7 @@ export default function AnnotateHubPage() {
   });
 
   useEffect(() => {
-    Promise.all([getPrompts(), getCompletedPromptIds()]).then(([prompts, completedIds]) => {
+    Promise.all([getPromptsForAnnotation(), getCompletedPromptIds()]).then(([prompts, completedIds]) => {
       const completedSet = new Set(completedIds);
 
       const counts: Record<string, { completed: number; total: number }> = {

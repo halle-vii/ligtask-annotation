@@ -7,6 +7,7 @@ import { getAdminPrompts, getPromptCompletionStats } from '@/app/actions/admin';
 interface Prompt {
   id: string;
   base_id: string;
+  task_instance_id: string;
   english_text: string;
   task_type: 'NLU' | 'NLR' | 'NLG';
   category: string;
@@ -141,7 +142,7 @@ export default function AdminPromptsPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  {['ID', 'English Text', 'Task Type', 'Category', 'Evaluations'].map(h => (
+                  {['Base ID', 'Task Instance ID', 'English Text', 'Task Type', 'Category', 'Evaluations'].map(h => (
                     <th key={h} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {h}
                     </th>
@@ -158,6 +159,9 @@ export default function AdminPromptsPage() {
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-mono font-medium text-gray-900">
                         {prompt.base_id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700">
+                        {prompt.task_instance_id}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
                         <p className="truncate">{prompt.english_text}</p>
@@ -178,7 +182,7 @@ export default function AdminPromptsPage() {
                     {/* Expanded row */}
                     {expandedId === prompt.id && (
                       <tr key={`${prompt.id}-expanded`} className="bg-blue-50">
-                        <td colSpan={5} className="px-6 py-4">
+                        <td colSpan={6} className="px-6 py-4">
                           <p className="text-sm font-medium text-gray-700 mb-1">Full English Text:</p>
                           <p className="text-sm text-gray-900">{prompt.english_text}</p>
                         </td>
