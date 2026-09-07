@@ -1,295 +1,173 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Prompt } from '@/types/database';
+import { useRouter } from 'next/navigation';
 import LogoutButton from '@/app/components/LogoutButton';
-import { submitTranslationEvaluation, getCompletedPromptIds } from '@/app/actions/evaluations';
-import { getPrompts } from '@/app/actions/prompts';
+import { getCompletedPromptIds } from '@/app/actions/evaluations';
+import { getPromptsForAnnotation } from '@/app/actions/prompts';
+import { Prompt } from '@/types/database';
 
-export default function TranslatePage() {
-  const [prompts, setPrompts] = useState<Prompt[]>([]);
+const PARTS = [
+  {
+    taskType: 'NLU',
+    label: 'Part 1: Natural Language Understanding (NLU)',
+    description: 'Verify Filipino translation accuracy for NLU prompts.',
+  },
+  {
+    taskType: 'NLR',
+    label: 'Part 2: Natural Language Reasoning (NLR)',
+    description: 'Verify Filipino translation accuracy for NLR prompts.',
+  },
+  {
+    taskType: 'NLG',
+    label: 'Part 3: Natural Language Generation (NLG)',
+    description: 'Verify Filipino translation accuracy for NLG prompts.',
+  },
+];
+
+const INSTRUCTIONS = [
+  {
+    heading: 'What is this task?',
+    body: 'You will be reviewing Filipino translations of English prompts to verify their accuracy. Each prompt pair is part of a safety evaluation dataset.',
+  },
+  {
+    heading: 'How to answer',
+    body: 'Compare the English and Filipino text carefully. If the translation accurately conveys the same meaning, mark it as correct. If not, provide a corrected translation.',
+  },
+  {
+    heading: 'Saving your progress',
+    body: 'Your answers are saved automatically after each submission. You can leave and return at any time — your progress will be restored.',
+  },
+];
+
+export default function TranslateHubPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
-  const [revisedTranslation, setRevisedTranslation] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  // Set of prompt UUIDs the user has already evaluated
-  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+  const [progress, setProgress] = useState<Record<string, { completed: number; total: number }>>({
+    NLU: { completed: 0, total: 0 },
+    NLR: { completed: 0, total: 0 },
+    NLG: { completed: 0, total: 0 },
+  });
 
   useEffect(() => {
-    // Fetch prompts and prior progress in parallel
-    Promise.all([getPrompts(), getCompletedPromptIds()]).then(([fetchedPrompts, ids]) => {
-      setPrompts(fetchedPrompts);
-      setCompletedIds(new Set(ids));
+    Promise.all([getPromptsForAnnotation(), getCompletedPromptIds()]).then(([prompts, completedIds]) => {
+      const completedSet = new Set(completedIds);
+
+      const counts: Record<string, { completed: number; total: number }> = {
+        NLU: { completed: 0, total: 0 },
+        NLR: { completed: 0, total: 0 },
+        NLG: { completed: 0, total: 0 },
+      };
+
+      (prompts as Prompt[]).forEach((p) => {
+        if (!counts[p.task_type]) return;
+        counts[p.task_type].total += 1;
+        if (completedSet.has(p.id)) counts[p.task_type].completed += 1;
+      });
+
+      setProgress(counts);
       setLoading(false);
     });
   }, []);
 
-  const currentPrompt = prompts[currentIndex];
-
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-      resetForm();
-    }
-  };
-
-  const handleNext = () => {
-    if (currentIndex < prompts.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      resetForm();
-    }
-  };
-
-  const resetForm = () => {
-    setIsCorrect(null);
-    setRevisedTranslation('');
-  };
-
-  const handleSubmit = async () => {
-    if (isCorrect === null) {
-      alert('Please indicate whether the translation is accurate');
-      return;
-    }
-    if (isCorrect === false && !revisedTranslation.trim()) {
-      alert('Please provide a revised translation');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const result = await submitTranslationEvaluation({
-        promptId: currentPrompt.id,
-        translationCorrect: isCorrect,
-        revisedTranslation: isCorrect ? null : revisedTranslation,
-      });
-
-      if (!result.success) {
-        alert(`Failed to save: ${result.error}`);
-        return;
-      }
-
-      // Mark as completed in sidebar
-      setCompletedIds(prev => new Set(prev).add(currentPrompt.id));
-
-      // Advance to next unanswered prompt, or stay if at end
-      if (currentIndex < prompts.length - 1) {
-        handleNext();
-      } else {
-        resetForm();
-      }
-    } catch (error) {
-      console.error('Error submitting:', error);
-      alert('Failed to submit. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleCopyFilipino = () => {
-    if (currentPrompt) {
-      setRevisedTranslation(currentPrompt.filipino_text);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}>
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading prompts...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!currentPrompt) {
-    return (
-      <div className="h-screen flex items-center justify-center" style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}>
-        <p className="text-gray-600">No prompts available.</p>
-      </div>
-    );
-  }
+  const totalCompleted = Object.values(progress).reduce((sum, p) => sum + p.completed, 0);
+  const totalPrompts = Object.values(progress).reduce((sum, p) => sum + p.total, 0);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}>
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ background: 'linear-gradient(to bottom, #F7F7F7, #1C45D5)' }}
+    >
+      <div className="flex justify-end p-4">
+        <LogoutButton />
+      </div>
 
-      {/* Top Header Bar */}
-      <header className="bg-white shadow flex-shrink-0">
-        <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
-          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Translator Dashboard</h1>
-          <LogoutButton />
-        </div>
-      </header>
+      <div className="flex-1 flex items-center justify-center px-4 pb-12">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-8 space-y-8">
 
-      {/* Below header: sidebar + main content */}
-      <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
-
-        {/* Sidebar – horizontal strip on mobile, vertical column on sm+ */}
-        <div className="
-          flex flex-row sm:flex-col
-          sm:w-16 bg-white border-b sm:border-b-0 sm:border-r border-gray-200
-          items-center sm:items-center
-          px-2 sm:px-0 py-2 sm:py-4
-          overflow-x-auto sm:overflow-x-hidden sm:overflow-y-auto
-          flex-shrink-0
-          gap-1.5 sm:gap-0
-          scrollbar-hide
-        ">
-          {prompts.map((prompt, index) => (
-            <button
-              key={index}
-              onClick={() => {
-                setCurrentIndex(index);
-                resetForm();
-              }}
-              className={`w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 flex items-center justify-center sm:mb-2 rounded-lg transition-colors font-medium text-sm ${
-                index === currentIndex
-                  ? 'text-white'
-                  : completedIds.has(prompt.id)
-                  ? 'text-gray-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              style={
-                index === currentIndex
-                  ? { backgroundColor: '#1C45D5' }
-                  : completedIds.has(prompt.id)
-                  ? { backgroundColor: '#B2E3FF' }
-                  : undefined
-              }
-            >
-              {index + 1}
-            </button>
-          ))}
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="flex items-start justify-center p-4 sm:p-6 lg:p-8 min-h-full">
-            <div className="w-full max-w-4xl">
-            {/* Navigation Arrows */}
-            <div className="flex justify-between mb-4">
-              <button
-                onClick={handlePrevious}
-                disabled={currentIndex === 0}
-                className="p-2 sm:p-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                aria-label="Previous prompt"
-              >
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button
-                onClick={handleNext}
-                disabled={currentIndex === prompts.length - 1}
-                className="p-2 sm:p-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                aria-label="Next prompt"
-              >
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Quiz Card */}
-            <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-              {/* Stacked prompt boxes — English overlaps top of Filipino */}
-              <div className="flex flex-col mb-5 sm:mb-6">
-                {/* English box — on top */}
-                <div className="bg-blue-50 rounded-xl p-4 sm:p-6 relative z-10 shadow-sm">
-                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3">English:</h3>
-                  <p className="text-sm sm:text-base text-gray-800 leading-relaxed">{currentPrompt.english_text}</p>
-                </div>
-
-                {/* Filipino box — tucked behind, pulled up 16px under English */}
-                <div className="bg-blue-100 rounded-xl px-4 sm:px-6 pb-4 sm:pb-6 pt-8 -mt-4 relative z-0">
-                  <div className="flex justify-between items-start mb-2 sm:mb-3">
-                    <h3 className="text-base sm:text-lg font-bold text-gray-900">Filipino:</h3>
-                    <button
-                      onClick={handleCopyFilipino}
-                      className="text-blue-600 hover:text-blue-700 p-1"
-                      title="Copy to revision box"
-                      aria-label="Copy Filipino text to revision box"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    </button>
-                  </div>
-                  <p className="text-sm sm:text-base text-gray-800 leading-relaxed">{currentPrompt.filipino_text}</p>
-                </div>
-              </div>
-
-              {/* Question */}
-              <div className="pt-2 sm:pt-4">
-                <h3 className="text-base sm:text-lg font-bold text-red-600 mb-3 sm:mb-4">
-                  Is the Filipino translation accurate?
-                </h3>
-
-                {/* Yes/No – card-style, full-width on mobile */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 sm:mb-6">
-                  <label className={`flex items-center gap-3 cursor-pointer rounded-xl border-2 px-4 py-3 transition-all ${
-                    isCorrect === true ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50 hover:border-gray-300'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="accuracy"
-                      checked={isCorrect === true}
-                      onChange={() => {
-                        setIsCorrect(true);
-                        setRevisedTranslation('');
-                      }}
-                      className="w-5 h-5 text-blue-600 flex-shrink-0"
-                    />
-                    <span className="text-gray-900 font-medium text-sm sm:text-base">Yes</span>
-                  </label>
-
-                  <label className={`flex items-center gap-3 cursor-pointer rounded-xl border-2 px-4 py-3 transition-all ${
-                    isCorrect === false ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50 hover:border-gray-300'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="accuracy"
-                      checked={isCorrect === false}
-                      onChange={() => setIsCorrect(false)}
-                      className="w-5 h-5 text-blue-600 flex-shrink-0"
-                    />
-                    <span className="text-gray-900 font-medium text-sm sm:text-base">No</span>
-                  </label>
-                </div>
-
-                {/* Revision Text Area */}
-                {isCorrect === false && (
-                  <div>
-                    <label className="block text-gray-900 font-medium mb-2 text-sm sm:text-base">
-                      If &apos;No&apos;, please revise the prompt below
-                    </label>
-                    <textarea
-                      value={revisedTranslation}
-                      onChange={(e) => setRevisedTranslation(e.target.value)}
-                      rows={4}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm sm:text-base"
-                      placeholder="Enter your revised translation here"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Submit Button */}
-              <div className="flex justify-end pt-2 sm:pt-4">
-                <button
-                  onClick={handleSubmit}
-                  disabled={submitting || isCorrect === null}
-                  className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
-                >
-                  {submitting ? 'Saving...' : 'Submit'}
-                </button>
-              </div>
-            </div>
+          <div>
+            <h1 className="text-3xl font-bold text-[#1C45D5] mb-2">Translation Review</h1>
+            {loading ? (
+              <p className="text-sm text-gray-400">Loading your progress...</p>
+            ) : (
+              <p className="text-sm text-gray-500">
+                Overall progress:{' '}
+                <span className="font-semibold text-gray-700">{totalCompleted}/{totalPrompts}</span> prompts reviewed
+              </p>
+            )}
           </div>
+
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Instructions</h2>
+            {INSTRUCTIONS.map((item, i) => (
+              <InstructionItem key={i} heading={item.heading} body={item.body} />
+            ))}
+          </div>
+
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Dataset Parts</h2>
+            {PARTS.map((part) => {
+              const p = progress[part.taskType];
+              const isComplete = !loading && p.total > 0 && p.completed === p.total;
+
+              return (
+                <button
+                  key={part.taskType}
+                  onClick={() => router.push(`/translate/${part.taskType}`)}
+                  className="w-full text-left bg-blue-50 hover:bg-blue-100 rounded-xl px-5 py-4 transition-colors border border-blue-100"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-gray-900 text-sm">{part.label}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{part.description}</p>
+                    </div>
+                    <div className="ml-4 flex-shrink-0 text-sm font-semibold text-gray-600 flex items-center gap-1.5">
+                      {loading ? (
+                        <span className="text-gray-300">—</span>
+                      ) : isComplete ? (
+                        <>
+                          <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-green-600">{p.completed}/{p.total}</span>
+                        </>
+                      ) : (
+                        <span>{p.completed}/{p.total}</span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
         </div>
       </div>
     </div>
-  </div>
+  );
+}
+
+function InstructionItem({ heading, body }: { heading: string; body: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex justify-between items-center px-4 py-3 text-left bg-gray-50 hover:bg-gray-100 transition-colors"
+      >
+        <span className="text-sm font-medium text-gray-800">{heading}</span>
+        <svg
+          className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="px-4 py-3 text-sm text-gray-700 bg-white leading-relaxed">
+          {body}
+        </div>
+      )}
+    </div>
   );
 }
